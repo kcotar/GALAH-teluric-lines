@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from astropy.table import Table
+from match_ids import *
 
 imp.load_source('s_collection', '../Carbon-Spectra/spectra_collection_functions.py')
 from s_collection import CollectionParameters
@@ -10,6 +11,8 @@ from s_collection import CollectionParameters
 print 'Reading data sets'
 galah_data_dir = '/home/klemen/GALAH_data/'
 galah_param = Table.read(galah_data_dir+'sobject_iraf_param_1.1.fits')
+galah_objects = Table.read(galah_data_dir+'galah_objects.fits')
+galah_observations = Table.read(galah_data_dir+'galah_observations.fits')
 # determine unique numbers of observation field
 observation_fields = np.int64(galah_param['sobject_id']/1000.)
 
@@ -37,8 +40,10 @@ wvl_line_center = 5685
 plot_range = 11.
 read_additional = 3.
 
+
+
 print 'Reading resampled GALAH spectra'
-spectra_file_csv = 'galah_dr51_ccd2_5660_5850_interpolated_wvlstep_0.05_spline_restframe.csv'
+spectra_file_csv = 'galah_dr51_ccd2_5660_5850_interpolated_wvlstep_0.05_linear.csv'
 # parse resampling settings from filename
 csv_param = CollectionParameters(spectra_file_csv)
 ccd = csv_param.get_ccd()
@@ -63,6 +68,11 @@ for field_id in np.unique(observation_fields):
     fig, axes = plt.subplots(2, 1)
     spectra_row = np.where(field_id == observation_fields)
     for row in spectra_row[0]:
+        sobject_id = galah_param[row]['sobject_id']
+        comb_id = get_id(sobject_id)
+        run_ids = match_cobid_with_runid(comb_id, galah_observations)
+        bar_vels = get_barycentric(sobject_id, run_ids, galah_objects, ccd='1')
+        barycentric_rv = np.mean(bar_vels)
         axes[0].plot(wvl_read, spectral_data[row, :], color='blue', alpha=0.05, linewidth=0.8)
     axes[0].plot(wvl_read, np.nanmedian(spectral_data[spectra_row[0], :], axis=0), color='black', linewidth=0.8)
     axes[0].plot(wvl_read, np.nanmax(spectral_data[spectra_row[0], :], axis=0), color='black', linewidth=0.3)
