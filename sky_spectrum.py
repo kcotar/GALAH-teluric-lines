@@ -13,9 +13,9 @@ galah_param = Table.read(galah_data_dir+'sobject_iraf_param_1.1.fits')
 observation_fields = np.int64(galah_param['sobject_id']/1000.)
 # np.unique(observation_fields)
 
-field_id = 150719002901
+field_id = 140315002501
 os.chdir('Sky_spectrum')
-for field_id in np.unique(observation_fields)[500:]:
+for field_id in [140315002501]: #np.unique(observation_fields)[500:]:
     print field_id
     idx_read = spectra_row = np.where(field_id == observation_fields)
     for i_row in idx_read[0]:
@@ -27,7 +27,7 @@ for field_id in np.unique(observation_fields)[500:]:
         spectra_data.close()
         wvl_values = wvl_start + np.arange(len(sky_spectra))*wvl_delta
         plt.plot(wvl_values, sky_spectra)
-    plt.xlim((6485, 6515))
+    plt.xlim((6490, 6520))
     plt.ylim((-200, 700))
     plt.savefig(str(field_id)+'.png', dpi=200)
     plt.close()
