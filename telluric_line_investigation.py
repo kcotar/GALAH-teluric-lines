@@ -213,7 +213,8 @@ if not os.path.isfile(tellurics_param_txt):
         for i_k in range(n_keys):
             function_val -= parameters['amp'+str(i_k)] * np.exp(-0.5 * (parameters['wvl'+str(i_k)] - wvls) ** 2 / parameters['std'+str(i_k)])
         if evaluate:
-            likelihood = np.nansum(np.power(data - function_val, 2))
+            # likelihood = np.nansum(np.power(data - function_val, 2))
+            likelihood = np.power(data - function_val, 2)
             return likelihood
         else:
             return function_val
@@ -273,16 +274,16 @@ if not os.path.isfile(tellurics_param_txt):
         fit_keys = list([])
         for i_l in range(len(telluric_lines)):
             key_std = 'std' + str(i_l)
-            fit_param.add(key_std, value=0.01, min=0.0001, max=0.05)
+            fit_param.add(key_std, value=0.01, min=0.001, max=0.1)
             fit_keys.append(key_std)
             key_amp = 'amp' + str(i_l)
-            fit_param.add(key_amp, value=0.1, min=0.0001, max=0.8)
+            fit_param.add(key_amp, value=0.1, min=0.001, max=0.8)
             fit_keys.append(key_amp)
             key_wvl = 'wvl' + str(i_l)
             fit_param.add(key_wvl, value=telluric_lines[i_l], min=telluric_lines[i_l]-0.1, max=telluric_lines[i_l]+0.1)#, vary=False)
             fit_keys.append(key_wvl)
         # minimize the model
-        fit_res = minimize(gaussian_fit, fit_param, method='brute',
+        fit_res = minimize(gaussian_fit, fit_param, #method='brute',
                            args=(spectral_data_avg_savgol, wvl_used, cont_fit))
                            # **{'max_nfev': 20000, 'verbose': 1})
         # minim = Minimizer(gaussian_fit, fit_param, fcn_args=(spectral_data_avg_savgol, wvl_used))
