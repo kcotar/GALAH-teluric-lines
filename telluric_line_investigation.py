@@ -121,13 +121,13 @@ if not os.path.isfile(tellurics_wvl_txt):
         spectra_row = np.where(field_id == observation_fields)
         # rv values of every object in the field
         rv_field = galah_param[spectra_row]['rv_guess']
-        rv_range = np.nanmax(rv_field)-np.nanmin(rv_field)
-        rv_std = np.nanstd(rv_field)
-        print 'RV range: '+str(rv_range)
-        print 'RV spread: '+str(rv_std)
-        if rv_range < 50 or rv_std < 20:
-            get_fields -= 1
-            continue
+        # rv_range = np.nanmax(rv_field)-np.nanmin(rv_field)
+        # rv_std = np.nanstd(rv_field)
+        # print 'RV range: '+str(rv_range)
+        # print 'RV spread: '+str(rv_std)
+        # if rv_range < 50 or rv_std < 20:
+        #     get_fields -= 1
+        #     continue
         rv_weight = np.abs(rv_field)
         rv_weight = rv_weight/np.nanmax(rv_weight)
         max_weight = 0.2
