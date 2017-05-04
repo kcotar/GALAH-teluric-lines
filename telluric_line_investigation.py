@@ -13,7 +13,7 @@ imp.load_source('s_collection', '../Carbon-Spectra/spectra_collection_functions.
 from s_collection import CollectionParameters
 
 print 'Reading data sets'
-galah_data_dir = '/home/nandir/Desktop/GALAH_data/'
+galah_data_dir = '/home/klemen/GALAH_data/'
 galah_param = Table.read(galah_data_dir+'sobject_iraf_52_reduced.csv', format='ascii.csv')
 # determine unique numbers of observation field
 observation_fields = np.int64(galah_param['sobject_id']/1000.)

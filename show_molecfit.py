@@ -9,7 +9,7 @@ imp.load_source('s_collection', '../Carbon-Spectra/spectra_collection_functions.
 from s_collection import CollectionParameters
 
 print 'Reading data sets'
-galah_data_dir = '/home/nandir/Desktop/GALAH_data/'
+galah_data_dir = '/home/klemen/GALAH_data/'
 fields_param = pd.read_csv(galah_data_dir+'sobject_iraf_52_reduced_fields.csv', header=None, sep=',').values[0]
 galah_param = Table.read(galah_data_dir+'sobject_iraf_52_reduced.csv', format='ascii.csv')
 # determine unique numbers of observation field
@@ -45,3 +45,5 @@ for i_f in range(len(fields_param)):
         # plt.plot(wvl_values_spectra, np.nanmedian(spectral_data[row_use], axis=0), linewidth=0.6, color='blue')
         plt.plot(wvl_values, molecfit, linewidth=0.6)
 plt.show()
+# plt.savefig('molecfit.png', dpi=400)
+plt.close()
