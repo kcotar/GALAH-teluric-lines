@@ -46,3 +46,10 @@ def get_skyfibers_field(run_id, objects, ccd=1):
     idx_sky = np.where(np.logical_and(objects_sub['type'] == 'S',
                                       objects_sub['out_name'] % 10 == ccd))
     return objects_sub[idx_sky]['out_name'].data
+
+
+def combined_to_individual(s_id, run_id):
+    s_id_str = str(s_id)
+    run_id = str(run_id)
+    out = run_id+'00'+s_id_str[-3:]
+    return np.int64(out)
