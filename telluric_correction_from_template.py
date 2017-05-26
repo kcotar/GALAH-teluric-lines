@@ -7,12 +7,16 @@ from scipy.interpolate import interp1d, splrep, splev
 from astropy.table import Table
 from match_ids import *
 from lmfit import Parameters, minimize
+from lmfit.models import GaussianModel, LinearModel
 
 imp.load_source('s_collection', '../Carbon-Spectra/spectra_collection_functions.py')
 from s_collection import CollectionParameters
 
 imp.load_source('templates', '../H-alpha_map/template_spectra_function.py')
 from templates import *
+
+imp.load_source('s_helper', '../Carbon-Spectra/helper_functions.py')
+from s_helper import get_spectra_dr52
 
 
 # Functions
@@ -49,6 +53,11 @@ def minimize_scale(param, template_residuum, teluric):
     return np.power(template_residuum + teluric*param_values['scale'], 2)
 
 
+def minimize_scale_gauss(param, y_ref, y_fit):
+    param_values = param.valuesdict()
+    return np.power(y_ref - y_fit*param_values['scale'], 2)
+
+
 def wvl_values_range_lines(lines, wvl, width=1.):
     idx_pos = np.full_like(wvl, False)
     for line in lines:
@@ -68,6 +77,7 @@ def extrema_value(vals):
 print 'Reading data sets'
 galah_template_dir = '/home/klemen/GALAH_data/Spectra_template_grid/galah_dr52_ccd3_6475_6745_interpolated_wvlstep_0.06_spline_restframe/Teff_250_logg_0.50_feh_0.25_snr_40_medianshift_std_2.5/'
 galah_data_dir = '/home/klemen/GALAH_data/'
+galah_spectra_dir = '/media/storage/HERMES_REDUCED/dr5.2/'
 galah_param = Table.read(galah_data_dir+'sobject_iraf_52_reduced.csv', format='ascii.csv')
 # determine unique numbers of observation field
 observation_fields = np.int64(galah_param['sobject_id']/1000.)
@@ -103,11 +113,12 @@ wvl_read_finer = np.arange(wvl_min, wvl_max, csv_param.get_wvl_step()/3)
 
 # atmospheric features line list
 teluric_line_list = pd.read_csv('telluric_linelist.csv')
-emission_line_list = pd.read_csv('emission_linelist.csv')
+emission_line_list = pd.read_csv('emission_linelist_2_used.csv')
 # subset of atmospheric lines
 line_cor_width = 1.5  # Angstrom
 teluric_line_list = teluric_line_list[np.logical_and(teluric_line_list['Ang'] > wvl_min,
                                                      teluric_line_list['Ang'] < wvl_max)]
+emission_line_list = emission_line_list[emission_line_list['Flux'] >= 1.]
 emission_line_list = emission_line_list[np.logical_and(emission_line_list['Ang'] > wvl_min,
                                                        emission_line_list['Ang'] < wvl_max)]
 
@@ -117,7 +128,7 @@ if not os.path.exists(out_dir):
 os.chdir(out_dir)
 
 grid_list = Table.read(galah_template_dir + 'grid_list.csv', format='ascii.csv')
-# selected_observation_fields = list([170205004401])
+# selected_observation_fields = list([140309002101])
 out_fields = '_fields_list.csv'
 out_residuals = '_template_residuals_median.csv'
 out_residuals_abs = '_template_residuals_median_abs.csv'
@@ -165,8 +176,10 @@ if not os.path.isfile(out_residuals):
         axes[0].plot(wvl_read_finer, residuum_median, color='black', alpha=0.8, linewidth=0.8)
         axes[0].set(xlim=(wvl_min, wvl_max), ylim=(-0.2, 0.2), ylabel='Observed')
         axes[1].set(xlim=(wvl_min, wvl_max), ylim=(-0.2, 0.2), ylabel='Restframe', xlabel='Wavelength')
+        axes[0].grid(True)
+        axes[1].grid(True)
         plt.tight_layout()
-        plt.savefig(str(field_id)+'.png', dpi=250)
+        plt.savefig(str(field_id)+'_residuals.png', dpi=250)
         plt.close()
         # save results to files
         append_line(out_fields, str(field_id), new_line=True)
@@ -214,10 +227,10 @@ plt.close()
 # raise SystemExit
 
 # subset of observations - for test corrections
-i_obj_selected = np.where(observation_fields == 140117002601)[0]
+# i_obj_selected = np.where(observation_fields == 140309002101)[0]
 
 # try to fit the approximation to every individual spectra in the field
-for i_obj in i_obj_selected:  # range(0, len(galah_param), 25):
+for i_obj in range(0, len(galah_param), 30):
     object_param = galah_param[i_obj]
     object_id = object_param['sobject_id']
     object_in_field = np.int64(object_id/1000.)
@@ -256,8 +269,8 @@ for i_obj in i_obj_selected:  # range(0, len(galah_param), 25):
 
         # the best residuum scaling factor based on reference spectra
         fit_param = Parameters()
-        fit_param.add('scale', value=1, min=0., max=10.)
-        fit_res = minimize(minimize_scale, fit_param,
+        fit_param.add('scale', value=1, min=0., max=10., brute_step=0.1)
+        fit_res = minimize(minimize_scale, fit_param,  # method='brute',
                            args=(template_res_before_s1, field_residuum_telluric),
                            **{'nan_policy': 'omit'})
         fit_res.params.pretty_print()
@@ -265,6 +278,7 @@ for i_obj in i_obj_selected:  # range(0, len(galah_param), 25):
         residuum_scale = fit_res.params['scale'].value
         object_spectra_corrected_s1_scaled = object_spectra - residuum_scale * field_residuum_telluric
         template_res_after_s1_scaled = template_spectra - object_spectra_corrected_s1_scaled
+        print np.nansum(template_res_after_s1**2), np.nansum(template_res_after_s1_scaled**2)
 
         fig, axes = plt.subplots(2, 1)
         suptitle = 'Guess  ->  teff:{:4.0f}  logg:{:1.1f}  feh:{:1.1f} \n correction scale:{:.1f}'.format(object_param['teff_guess'],
@@ -304,7 +318,7 @@ for i_obj in i_obj_selected:  # range(0, len(galah_param), 25):
         # wavelengths to be corrected - first correct part of the spectra influenced by the telluric effects
         # wavelengths to be corrected - first correct part of the spectra influenced by the telluric effects
         idx_emission_wvl = wvl_values_range_lines(emission_line_list['Ang'], wvl_read_finer, width=1.5)
-        idx_telluric_wvl = wvl_values_range_lines(teluric_line_list['Ang'], wvl_read_finer, width=1.)
+        idx_telluric_wvl = wvl_values_range_lines(teluric_line_list['Ang'], wvl_read_finer, width=0.1)
         idx_correction_skip = np.logical_or(np.logical_not(idx_emission_wvl), idx_telluric_wvl)
         # create new temporary array from determined residuals
         field_residuum_emission = np.array(field_residual_abs_observed)
@@ -322,37 +336,64 @@ for i_obj in i_obj_selected:  # range(0, len(galah_param), 25):
         template_res_before_s2 = template_spectra - object_spectra
         template_res_after_s2 = template_spectra - object_spectra_corrected_s2
 
-    fig, axes = plt.subplots(2, 1)
-    # suptitle = 'Guess  ->  teff:{:4.0f}  logg:{:1.1f}  feh:{:1.1f} \n correction scale:{:.1f}'.format(
-    #     object_param['teff_guess'],
-    #     object_param['logg_guess'],
-    #     object_param['feh_guess'], residuum_scale)
-    # fig.suptitle(suptitle)
-    axes[0].plot(wvl_read, template_spectra, color='red', linewidth=0.8)
-    axes[0].plot(wvl_read, object_spectra, color='black', linewidth=0.8)
-    axes[0].plot(wvl_read, object_spectra_corrected_s2, color='blue', linewidth=0.8)
-    # axes[0].plot(wvl_read, object_spectra_corrected_s1_scaled, color='green', linewidth=0.8)
-    axes[0].set(xlim=(wvl_min, wvl_max), ylim=(0.2, 1.1), ylabel='Spectra')
-    on = False
-    off = True
-    for i_t in range(len(field_residuum_emission_binary)):
-        f_r_b = field_residuum_emission_binary[i_t]
-        if off and f_r_b:
-            span_s = i_t
-            off = False
-            on = True
-        if on and not f_r_b:
-            span_e = i_t
-            off = True
-            on = False
-            axes[1].axvspan(wvl_read[span_s], wvl_read[span_e], facecolor='black', alpha=0.1)
-    axes[1].plot(wvl_read, field_residuum_emission + 0.1, color='black', linewidth=0.8)
-    axes[1].plot(wvl_read, template_res_before_s2, color='black', linewidth=0.8)
-    axes[1].plot(wvl_read, template_res_after_s2, color='blue', linewidth=0.8)
-    # axes[1].plot(wvl_read, template_res_after_scaled, color='green', linewidth=0.8)
-    axes[1].set(xlim=(wvl_min, wvl_max), ylim=(-0.2, 0.2), ylabel='Template residual')
-    axes[1].grid(True)
-    plt.savefig(str(object_id) + '_e.png', dpi=350)
-    plt.close()
+        # get extension 0 and 2 for this spectra
+        object_spectra_ext0, wvl_ext0 = get_spectra_dr52(str(object_id), bands=[3], root=galah_spectra_dir, extension=0)
+        object_spectra_ext2, _ = get_spectra_dr52(str(object_id), bands=[3], root=galah_spectra_dir, extension=2)
+        sky_correction = object_spectra_ext0[0] - object_spectra_ext2[0]
+        # resample and shift residuals from barycentric to restframe
+        wvl_ext0 = wvl_ext0 / (1 + object_param['rv_guess_shift'] * 1000. / C_LIGHT)
+        # normalize sky correction
+        sky_correction -= np.median(sky_correction)
+        sky_correction_scaled = sky_correction/750. + 0.5
 
+        # create a comb of gaussian functions to be fitted
+        wvl_scale = (1 + velocity_shift * 1000. / C_LIGHT)
+        gauss_comb = np.full_like(object_spectra, 0.)
+        for l_index, line in emission_line_list.iterrows():
+            gauss_comb += line['Flux'] / (line['Std'] * np.sqrt(2*np.pi)) * np.exp(-0.5 * (line['Ang']/wvl_scale - wvl_read) ** 2 / line['Std'] ** 2)
+
+        # the best residuum scaling factor based on reference spectra
+        fit_param = Parameters()
+        fit_param.add('scale', value=1, min=-10., max=10., brute_step=0.1)
+        fit_res_comb = minimize(minimize_scale_gauss, fit_param,  # method='brute',
+                                args=(template_res_before_s2, gauss_comb),
+                                **{'nan_policy': 'omit'})
+        fit_res_comb.params.pretty_print()
+        gauss_comb_scaled = gauss_comb * fit_res_comb.params['scale'].value
+        object_spectra_corrected_s2 = object_spectra + gauss_comb_scaled
+
+        fig, axes = plt.subplots(2, 1)
+        # suptitle = 'Guess  ->  teff:{:4.0f}  logg:{:1.1f}  feh:{:1.1f} \n correction scale:{:.1f}'.format(
+        #     object_param['teff_guess'],
+        #     object_param['logg_guess'],
+        #     object_param['feh_guess'], residuum_scale)
+        # fig.suptitle(suptitle)
+        axes[0].plot(wvl_ext0[0], sky_correction_scaled, color='pink', linewidth=0.8)
+        axes[0].plot(wvl_read, template_spectra, color='red', linewidth=0.8)
+        axes[0].plot(wvl_read, object_spectra, color='black', linewidth=0.8)
+        # axes[0].plot(wvl_read, object_spectra_corrected_s2, color='blue', linewidth=0.8)
+        axes[0].plot(wvl_read, object_spectra_corrected_s2, color='green', linewidth=0.8)
+        axes[0].set(xlim=(wvl_min, wvl_max), ylim=(0.2, 1.1), ylabel='Spectra')
+        on = False
+        off = True
+        for i_t in range(len(field_residuum_emission_binary)):
+            f_r_b = field_residuum_emission_binary[i_t]
+            if off and f_r_b:
+                span_s = i_t
+                off = False
+                on = True
+            if on and not f_r_b:
+                span_e = i_t
+                off = True
+                on = False
+                axes[1].axvspan(wvl_read[span_s], wvl_read[span_e], facecolor='black', alpha=0.1)
+        # axes[1].plot(wvl_read, field_residuum_emission + 0.1, color='black', linewidth=0.8)
+        axes[1].plot(wvl_read, template_res_before_s2, color='black', linewidth=0.8)
+        # axes[1].plot(wvl_read, template_res_after_s2, color='blue', linewidth=0.8)
+        axes[1].plot(wvl_read, gauss_comb_scaled, color='green', linewidth=0.8)
+        axes[1].set(xlim=(wvl_min, wvl_max), ylim=(-0.3, 0.3), ylabel='Template residual')
+        axes[1].grid(True)
+        plt.savefig(str(object_id) + '_e.png', dpi=350)
+        plt.close()
+        print ''
 # refine the approximations using the position of the stars in the observation field and their altitude angle
