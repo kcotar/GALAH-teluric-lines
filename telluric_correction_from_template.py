@@ -75,7 +75,7 @@ def extrema_value(vals):
         return max
 
 print 'Reading data sets'
-galah_template_dir = '/home/klemen/GALAH_data/Spectra_template_grid/galah_dr52_ccd3_6475_6745_interpolated_wvlstep_0.06_spline_restframe/Teff_250_logg_0.50_feh_0.25_snr_40_medianshift_std_2.5/'
+galah_template_dir = '/home/klemen/GALAH_data/Spectra_template_grid/galah_dr52_ccd3_6475_6745_wvlstep_0.03_lin_RF_renorm/Teff_300_logg_0.50_feh_0.20_snr_40_medianshift_std_2.5_redflag/'
 galah_data_dir = '/home/klemen/GALAH_data/'
 galah_spectra_dir = '/media/storage/HERMES_REDUCED/dr5.2/'
 galah_param = Table.read(galah_data_dir+'sobject_iraf_52_reduced.csv', format='ascii.csv')
@@ -88,13 +88,13 @@ get_fields = len(selected_observation_fields)
 
 C_LIGHT = 299792458  # m/s
 
-wvl_min = 6479
-wvl_max = 6510
+wvl_min = 6500
+wvl_max = 6550
 
 shift_for_barycentric = True
 
 print 'Reading resampled GALAH spectra'
-spectra_file_csv_obs = 'galah_dr52_ccd3_6475_6745_interpolated_wvlstep_0.06_spline_restframe.csv'
+spectra_file_csv_obs = 'galah_dr52_ccd3_6475_6745_wvlstep_0.03_lin_RF_renorm.csv'
 # parse resampling settings from filename
 csv_param = CollectionParameters(spectra_file_csv_obs)
 ccd = csv_param.get_ccd()
@@ -122,13 +122,13 @@ emission_line_list = emission_line_list[emission_line_list['Flux'] >= 1.]
 emission_line_list = emission_line_list[np.logical_and(emission_line_list['Ang'] > wvl_min,
                                                        emission_line_list['Ang'] < wvl_max)]
 
-out_dir = 'Correction_with_template'
+out_dir = 'Correction_with_template_2'
 if not os.path.exists(out_dir):
     os.mkdir(out_dir)
 os.chdir(out_dir)
 
 grid_list = Table.read(galah_template_dir + 'grid_list.csv', format='ascii.csv')
-# selected_observation_fields = list([140309002101])
+selected_observation_fields = list([140117001101])
 out_fields = '_fields_list.csv'
 out_residuals = '_template_residuals_median.csv'
 out_residuals_abs = '_template_residuals_median_abs.csv'

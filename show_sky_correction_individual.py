@@ -11,7 +11,7 @@ from helper_functions import get_spectra_dr52
 
 spectra_dir = '/media/storage/HERMES_REDUCED/dr5.2/'
 galah_data_dir = '/home/klemen/GALAH_data/'
-galah_param = Table.read(galah_data_dir+'sobject_iraf_52_reduced.csv', format='ascii.csv')
+galah_param = Table.read(galah_data_dir+'sobject_iraf_52_reduced.fits')
 galah_observations = Table.read(galah_data_dir+'galah_observations.fits')
 
 os.chdir('Sky_correction_individual_objects')
